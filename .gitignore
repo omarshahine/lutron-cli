@@ -5,4 +5,8 @@ __pycache__/
 *.pyc
 .eggs/
 build/
-
+.pytest_cache/
+.ruff_cache/
+*.tsbuildinfo
+.cache/
+package-lock.json

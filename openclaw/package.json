@@ -1,0 +1,45 @@
+{
+  "name": "openclaw-lutron",
+  "version": "0.1.0",
+  "description": "OpenClaw plugin for Lutron Caseta smart lighting control (scenes, Smart Away, devices, areas)",
+  "type": "module",
+  "openclaw": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "files": [
+    "src/",
+    "skills/",
+    "openclaw.plugin.json"
+  ],
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "lutron",
+    "caseta",
+    "smart-home",
+    "home-automation",
+    "lighting"
+  ],
+  "author": {
+    "name": "Omar Shahine",
+    "email": "omar@shahine.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omarshahine/lutron-cli.git",
+    "directory": "openclaw"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}

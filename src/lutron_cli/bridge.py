@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 import click
-from xdg import xdg_config_home
-
 from pylutron_caseta.smartbridge import Smartbridge
+from xdg import xdg_config_home
 
 
 def get_cert_dir() -> Path:

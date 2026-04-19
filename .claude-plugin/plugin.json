@@ -1,0 +1,19 @@
+{
+  "name": "lutron-caseta",
+  "version": "0.1.0",
+  "description": "Control Lutron Caseta lighting via the lutron CLI: scenes, Smart Away, devices, areas, occupancy.",
+  "author": {
+    "name": "Omar Shahine",
+    "email": "omar@shahine.com"
+  },
+  "homepage": "https://github.com/omarshahine/lutron-cli",
+  "repository": "https://github.com/omarshahine/lutron-cli",
+  "license": "MIT",
+  "keywords": [
+    "lutron",
+    "caseta",
+    "smart-home",
+    "home-automation",
+    "lighting"
+  ]
+}

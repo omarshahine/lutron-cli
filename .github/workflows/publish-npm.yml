@@ -1,0 +1,44 @@
+name: Publish to NPM
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish openclaw-lutron to NPM
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: openclaw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Ensure npm supports trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Assert tag matches openclaw/package.json version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $TAG_VERSION does not match openclaw/package.json version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Publish (OIDC)
+        run: npm publish --provenance --access public
+
+      - name: Verify
+        run: npm view openclaw-lutron version

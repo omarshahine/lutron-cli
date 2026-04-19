@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 CONFIG_DIR = Path.home() / ".config" / "lutron-cli"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 

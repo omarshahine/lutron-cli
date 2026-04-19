@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from datetime import timedelta
-from pathlib import Path
 
 import click
 
 from .bridge import get_cert_dir, get_cert_paths, open_bridge, run_async
-from .config import get_default_host, load_config, save_config, set_default_host
+from .config import get_default_host, load_config, set_default_host
 
 
 def _json(data) -> None:
@@ -46,12 +44,11 @@ def cli(ctx, host):
 @click.option("--timeout", default=5, type=int, help="Discovery timeout in seconds.")
 def scan(timeout):
     """Discover Lutron Caseta bridges on the local network via mDNS."""
-    from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
     import socket
-    import threading
+
+    from zeroconf import ServiceBrowser, ServiceStateChange, Zeroconf
 
     results = []
-    done = threading.Event()
 
     def on_state_change(zeroconf, service_type, name, state_change):
         if state_change is ServiceStateChange.Added:
@@ -83,7 +80,7 @@ def scan(timeout):
 @cli.command()
 @click.argument("host")
 def pair(host):
-    """Pair with a Lutron Caseta bridge. Press the small black button on the back of the bridge when prompted."""
+    """Pair with a bridge. Press the small black button on the back when prompted."""
 
     async def _pair():
         from pylutron_caseta.pairing import async_pair

@@ -1,0 +1,73 @@
+name: Publish to ClawHub
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish lutron-caseta to ClawHub
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: openclaw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install clawhub CLI
+        run: npm install -g clawhub
+
+      - name: Authenticate
+        env:
+          CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
+        run: clawhub login --token "$CLAWHUB_TOKEN" --no-browser
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog from tag annotation
+        id: changelog
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          MSG=$(git tag -l --format='%(contents:subject)' "$TAG_NAME" 2>/dev/null || true)
+          if [ -z "$MSG" ] || [ "$MSG" = "$TAG_NAME" ]; then
+            MSG=$(git log -1 --format='%s')
+          fi
+          {
+            echo "text<<EOF"
+            echo "$MSG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish to ClawHub
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANGELOG: ${{ steps.changelog.outputs.text }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: |
+          clawhub package publish . \
+            --family code-plugin \
+            --name lutron-caseta \
+            --display-name "Lutron Caseta" \
+            --version "$VERSION" \
+            --changelog "$CHANGELOG" \
+            --tags "latest" \
+            --source-repo "$REPO" \
+            --source-commit "$SHA" \
+            --source-ref "$REF"
+
+      - name: Verify
+        run: clawhub package inspect lutron-caseta

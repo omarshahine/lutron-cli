@@ -1,0 +1,32 @@
+{
+  "id": "lutron-caseta",
+  "name": "Lutron Caseta",
+  "description": "Control Lutron Caseta lighting: activate scenes, toggle Smart Away, inspect devices/areas/occupancy via the lutron CLI.",
+  "version": "0.1.0",
+  "skills": ["skills/lutron"],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "cliPath": {
+        "type": "string",
+        "description": "Path to the lutron binary",
+        "default": "lutron"
+      },
+      "bridgeHost": {
+        "type": "string",
+        "description": "Bridge IP or hostname (overrides lutron-cli config)"
+      }
+    }
+  },
+  "uiHints": {
+    "cliPath": {
+      "label": "CLI Path",
+      "help": "Path or command name for the lutron binary. Install via `pipx install lutron-cli`.",
+      "placeholder": "lutron"
+    },
+    "bridgeHost": {
+      "label": "Bridge Host",
+      "help": "IP of your Smart Bridge (e.g. 192.168.1.50). Leave blank to use the lutron-cli config default."
+    }
+  }
+}

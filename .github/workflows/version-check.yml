@@ -1,0 +1,42 @@
+name: Version Consistency
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  json-manifests:
+    name: JSON manifests agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: omarshahine/version-consistency-action@v1
+        with:
+          sets: |
+            - name: "lutron-caseta plugin"
+              sources:
+                - openclaw/package.json:.version
+                - openclaw/openclaw.plugin.json:.version
+                - .claude-plugin/plugin.json:.version
+                - marketplace.json:.plugins[0].version
+
+  pyproject-matches:
+    name: pyproject.toml version matches plugin manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compare versions
+        run: |
+          set -euo pipefail
+          PYPROJECT_VERSION=$(python -c 'import tomllib,sys;print(tomllib.loads(open("pyproject.toml","rb").read().decode())["project"]["version"])')
+          PLUGIN_VERSION=$(python -c 'import json;print(json.load(open("openclaw/package.json"))["version"])')
+          echo "pyproject.toml: $PYPROJECT_VERSION"
+          echo "openclaw/package.json: $PLUGIN_VERSION"
+          if [ "$PYPROJECT_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "::error::pyproject.toml version ($PYPROJECT_VERSION) does not match plugin version ($PLUGIN_VERSION)"
+            exit 1
+          fi
