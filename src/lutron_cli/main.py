@@ -53,9 +53,9 @@ def scan(timeout):
     results = []
     done = threading.Event()
 
-    def on_state_change(zc, service_type, name, state_change):
+    def on_state_change(zeroconf, service_type, name, state_change):
         if state_change is ServiceStateChange.Added:
-            info = zc.get_service_info(service_type, name)
+            info = zeroconf.get_service_info(service_type, name)
             if info:
                 addresses = [
                     socket.inet_ntoa(addr) for addr in info.addresses
