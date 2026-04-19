@@ -1,11 +1,11 @@
 {
-  "name": "lutron-caseta",
+  "name": "openclaw-lutron",
   "owner": {
     "name": "Omar Shahine"
   },
   "plugins": [
     {
-      "name": "lutron-caseta",
+      "name": "openclaw-lutron",
       "source": "openclaw",
       "description": "Control Lutron Caseta lighting: scenes, Smart Away, devices, areas, occupancy.",
       "version": "0.1.0"

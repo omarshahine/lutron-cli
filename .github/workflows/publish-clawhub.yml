@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish lutron-caseta to ClawHub
+    name: Publish openclaw-lutron to ClawHub
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -60,7 +60,7 @@ jobs:
         run: |
           clawhub package publish . \
             --family code-plugin \
-            --name lutron-caseta \
+            --name openclaw-lutron \
             --display-name "Lutron Caseta" \
             --version "$VERSION" \
             --changelog "$CHANGELOG" \
@@ -70,4 +70,4 @@ jobs:
             --source-ref "$REF"
 
       - name: Verify
-        run: clawhub package inspect lutron-caseta
+        run: clawhub package inspect openclaw-lutron
