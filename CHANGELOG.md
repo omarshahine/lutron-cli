@@ -17,6 +17,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `~/.config/pylutron_caseta/` location.
 - OpenClaw plugin (`openclaw-lutron` on npm, `lutron-caseta` on ClawHub) that
   shells out to the `lutron` binary and exposes one tool per CLI command.
+- Install via `pipx install git+https://github.com/omarshahine/lutron-cli`
+  (not distributed on PyPI).
 - Claude Code plugin manifest (`lutron-caseta`) with a top-level `lutron`
   skill mirroring the OpenClaw skill.
 

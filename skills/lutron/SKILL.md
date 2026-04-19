@@ -17,7 +17,7 @@ Control a Lutron Caseta Smart Bridge (L-BDG2-WH and similar) via the `lutron` CL
 
 ## Prerequisites
 
-1. Install the CLI: `pipx install lutron-cli`
+1. Install the CLI: `pipx install git+https://github.com/omarshahine/lutron-cli`
 2. Pair with the bridge once (requires pressing the small black button on its back):
    ```bash
    lutron scan         # find the bridge IP

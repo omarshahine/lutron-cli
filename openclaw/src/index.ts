@@ -205,7 +205,7 @@ function errorResult(message: string): { content: TextContent[] } {
 }
 
 const INSTALL_HINT =
-  "Install lutron-cli first: `pipx install lutron-cli`. See https://github.com/omarshahine/lutron-cli for setup.";
+  "Install lutron-cli first: `pipx install git+https://github.com/omarshahine/lutron-cli`. See https://github.com/omarshahine/lutron-cli for setup.";
 
 export default function activate(context: OpenClawContext): void {
   const config = context.config;

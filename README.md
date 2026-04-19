@@ -9,7 +9,7 @@ it out of the box.
 ## Install
 
 ```bash
-pipx install lutron-cli
+pipx install git+https://github.com/omarshahine/lutron-cli
 ```
 
 Or for development:
