@@ -68,6 +68,30 @@ lutron devices --domain light       # only lights
 lutron status 5                     # one device by id
 lutron off 5                        # turn off device 5
 lutron off 5 --fade 3               # turn off over 3s fade
+lutron on 5                         # turn on device 5
+lutron on 5 --level 60 --fade 2     # turn on to 60% over 2s
+lutron level 5 30                   # set dimmer 5 to 30%
+lutron level 5 30 --fade 2          # ...with 2s fade
+```
+
+### Fans, Shades, and Warm-Dim Bulbs
+
+```bash
+lutron fan 8 Medium                 # Off | Low | Medium | MediumHigh | High
+lutron cover 12 down                # up | down | stop
+lutron cover 12 up --tilt 45        # tiltable blind
+lutron warm 7 20                    # warm-dim level (candle-style color shift)
+lutron warm 7 20 --fade 3           # ...with fade
+```
+
+### Picos, Keypads, and Battery Status
+
+```bash
+lutron buttons                      # list every Pico/keypad button
+lutron buttons --device 14          # filter to one Pico's buttons
+lutron tap 42                       # simulate a button press by button_id
+lutron battery                      # scan all battery-powered devices
+lutron battery 14                   # battery for one device
 ```
 
 ### Areas & Occupancy
@@ -75,6 +99,21 @@ lutron off 5 --fade 3               # turn off over 3s fade
 ```bash
 lutron areas                  # rooms/areas
 lutron occupancy              # occupancy sensor groups with current status
+```
+
+### Bulk Operations
+
+```bash
+lutron all off                             # panic: turn off every light/switch/fan/cover
+lutron all off --area "Kitchen"            # limit to one room
+lutron all off --fade 3 --exclude 5,12     # graceful dim-down, spare 2 devices
+```
+
+### Health & Snapshot
+
+```bash
+lutron info                   # bridge connection, device counts, CLI + library versions
+lutron export                 # full JSON snapshot: areas + devices + scenes + buttons
 ```
 
 ### Configuration
@@ -96,9 +135,15 @@ Cert location: `~/.config/pylutron_caseta/`.
 openclaw plugins install lutron-caseta
 ```
 
-Registers tools: `lutron_scenes`, `lutron_activate_scene`, `lutron_devices`,
-`lutron_device_status`, `lutron_turn_off`, `lutron_away_status`,
-`lutron_away_on`, `lutron_away_off`, `lutron_areas`, `lutron_occupancy`.
+Registers 17 tools: `lutron_scenes`, `lutron_activate_scene`, `lutron_devices`,
+`lutron_device_status`, `lutron_set_level` (0-100; 0 = off, 100 = full on),
+`lutron_set_fan`, `lutron_cover`, `lutron_warm_dim`, `lutron_buttons`,
+`lutron_tap`, `lutron_battery`, `lutron_smart_away` (status/on/off),
+`lutron_areas`, `lutron_occupancy`, `lutron_all_off` (panic switch),
+`lutron_info` (health), `lutron_export` (snapshot).
+
+The CLI itself keeps separate `on`, `off`, `level`, and `away on|off|status`
+subcommands for human shell use — only the agent tool surface is consolidated.
 
 The plugin shells out to the `lutron` binary, so install the CLI first with
 `pipx install lutron-cli` and pair the bridge before installing the plugin.

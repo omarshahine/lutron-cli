@@ -206,6 +206,255 @@ def off(ctx, device_id, fade):
 
 
 # ---------------------------------------------------------------------------
+# on
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.option("--level", default=None, type=int, help="Dimmer level 0-100 (default: full on).")
+@click.option("--fade", default=None, type=float, help="Fade time in seconds.")
+@click.pass_context
+def on(ctx, device_id, level, fade):
+    """Turn on a device, optionally at a specific level with fade."""
+    if level is not None and not 0 <= level <= 100:
+        raise click.BadParameter("--level must be between 0 and 100.")
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _on():
+        async with open_bridge(host) as bridge:
+            if level is not None or fade is not None:
+                await bridge.set_value(
+                    device_id,
+                    level if level is not None else 100,
+                    fade_time=timedelta(seconds=fade) if fade is not None else None,
+                )
+            else:
+                await bridge.turn_on(device_id)
+            return {
+                "success": True,
+                "device_id": device_id,
+                "state": level if level is not None else 100,
+            }
+
+    _json(run_async(_on()))
+
+
+# ---------------------------------------------------------------------------
+# level
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.argument("value", type=int)
+@click.option("--fade", default=None, type=float, help="Fade time in seconds.")
+@click.pass_context
+def level(ctx, device_id, value, fade):
+    """Set a dimmer to a specific level 0-100."""
+    if not 0 <= value <= 100:
+        raise click.BadParameter("level must be between 0 and 100.")
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _level():
+        async with open_bridge(host) as bridge:
+            await bridge.set_value(
+                device_id,
+                value,
+                fade_time=timedelta(seconds=fade) if fade is not None else None,
+            )
+            return {"success": True, "device_id": device_id, "state": value}
+
+    _json(run_async(_level()))
+
+
+# ---------------------------------------------------------------------------
+# fan
+# ---------------------------------------------------------------------------
+FAN_SPEEDS = ["Off", "Low", "Medium", "MediumHigh", "High"]
+
+
+@cli.command()
+@click.argument("device_id")
+@click.argument("speed", type=click.Choice(FAN_SPEEDS, case_sensitive=False))
+@click.pass_context
+def fan(ctx, device_id, speed):
+    """Set fan speed: Off, Low, Medium, MediumHigh, or High."""
+    # Normalize case to what the library expects.
+    normalized = next(s for s in FAN_SPEEDS if s.lower() == speed.lower())
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _fan():
+        async with open_bridge(host) as bridge:
+            await bridge.set_fan(device_id, normalized)
+            return {"success": True, "device_id": device_id, "speed": normalized}
+
+    _json(run_async(_fan()))
+
+
+# ---------------------------------------------------------------------------
+# cover (shades/blinds)
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.argument("action", type=click.Choice(["up", "down", "stop"], case_sensitive=False))
+@click.option("--tilt", default=None, type=int, help="Tilt angle 0-100 (tiltable blinds only).")
+@click.pass_context
+def cover(ctx, device_id, action, tilt):
+    """Control a shade or blind: up, down, or stop. Optional --tilt."""
+    action = action.lower()
+    if tilt is not None and not 0 <= tilt <= 100:
+        raise click.BadParameter("--tilt must be between 0 and 100.")
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _cover():
+        async with open_bridge(host) as bridge:
+            if action == "up":
+                await bridge.raise_cover(device_id)
+            elif action == "down":
+                await bridge.lower_cover(device_id)
+            else:
+                await bridge.stop_cover(device_id)
+            if tilt is not None:
+                await bridge.set_tilt(device_id, tilt)
+            return {
+                "success": True,
+                "device_id": device_id,
+                "action": action,
+                "tilt": tilt,
+            }
+
+    _json(run_async(_cover()))
+
+
+# ---------------------------------------------------------------------------
+# warm (warm-dim color-tuning bulbs)
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.argument("value", type=int)
+@click.option("--fade", default=None, type=float, help="Fade time in seconds.")
+@click.option(
+    "--disable",
+    is_flag=True,
+    default=False,
+    help="Disable warm-dim mode (keep level, restore normal dimming curve).",
+)
+@click.pass_context
+def warm(ctx, device_id, value, fade, disable):
+    """Set warm-dim level 0-100 on a warm-dim-capable bulb."""
+    if not 0 <= value <= 100:
+        raise click.BadParameter("value must be between 0 and 100.")
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _warm():
+        async with open_bridge(host) as bridge:
+            await bridge.set_warm_dim(
+                device_id,
+                enabled=not disable,
+                value=value,
+                fade_time=timedelta(seconds=fade) if fade is not None else None,
+            )
+            return {
+                "success": True,
+                "device_id": device_id,
+                "level": value,
+                "warm_dim": not disable,
+            }
+
+    _json(run_async(_warm()))
+
+
+# ---------------------------------------------------------------------------
+# buttons
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.option(
+    "--device",
+    "device_id",
+    default=None,
+    help="Filter buttons belonging to a specific device (e.g. a Pico remote).",
+)
+@click.pass_context
+def buttons(ctx, device_id):
+    """List Pico / keypad buttons known to the bridge."""
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _buttons():
+        async with open_bridge(host) as bridge:
+            b = bridge.get_buttons()
+            items = list(b.values()) if isinstance(b, dict) else b
+            if device_id:
+                items = [
+                    btn
+                    for btn in items
+                    if str(btn.get("parent_device")) == str(device_id)
+                ]
+            return items
+
+    _json(run_async(_buttons()))
+
+
+# ---------------------------------------------------------------------------
+# tap
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("button_id")
+@click.pass_context
+def tap(ctx, button_id):
+    """Simulate a Pico / keypad button press. Use `lutron buttons` to find ids."""
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _tap():
+        async with open_bridge(host) as bridge:
+            await bridge.tap_button(button_id)
+            return {"success": True, "button_id": button_id}
+
+    _json(run_async(_tap()))
+
+
+# ---------------------------------------------------------------------------
+# battery
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id", required=False)
+@click.pass_context
+def battery(ctx, device_id):
+    """Get battery status for a device, or all battery-powered devices."""
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _battery():
+        async with open_bridge(host) as bridge:
+            if device_id:
+                status_val = await bridge.get_battery_status(device_id)
+                return {"device_id": device_id, "battery_status": status_val}
+            devs = bridge.get_devices()
+            items = list(devs.values()) if isinstance(devs, dict) else devs
+            results = []
+            for dev in items:
+                dev_id = dev.get("device_id") or dev.get("id")
+                if not dev_id:
+                    continue
+                try:
+                    status_val = await bridge.get_battery_status(dev_id)
+                except Exception:  # noqa: BLE001 - library may raise for non-battery devices
+                    continue
+                if status_val is None:
+                    continue
+                results.append(
+                    {
+                        "device_id": dev_id,
+                        "name": dev.get("name"),
+                        "battery_status": status_val,
+                    }
+                )
+            return results
+
+    _json(run_async(_battery()))
+
+
+# ---------------------------------------------------------------------------
 # scenes
 # ---------------------------------------------------------------------------
 @cli.command()
@@ -320,3 +569,154 @@ def occupancy(ctx):
             return list(occ.values()) if isinstance(occ, dict) else occ
 
     _json(run_async(_occupancy()))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: `all off` — panic switch for everything, optionally scoped to an area
+# ---------------------------------------------------------------------------
+CONTROLLABLE_DOMAINS = {"light", "switch", "fan", "cover"}
+
+
+def _device_area_id(device: dict) -> str | None:
+    """Return the area id for a device, accepting any of the shapes pylutron-caseta uses."""
+    return (
+        device.get("area")
+        or device.get("area_id")
+        or (device.get("parent_area") or {}).get("href")
+    )
+
+
+def _resolve_area_id(areas: dict, name: str) -> str | None:
+    """Map an area name (case-insensitive) to its id."""
+    for area_id, area in (areas or {}).items():
+        if str(area.get("name", "")).lower() == name.lower():
+            return area_id
+    return None
+
+
+@cli.command("all")
+@click.argument("action", type=click.Choice(["off"], case_sensitive=False))
+@click.option("--area", "area_name", default=None, help="Limit to devices in this area.")
+@click.option("--fade", default=None, type=float, help="Fade time in seconds.")
+@click.option(
+    "--exclude",
+    default=None,
+    help="Comma-separated device ids to skip.",
+)
+@click.pass_context
+def all_cmd(ctx, action, area_name, fade, exclude):
+    """Bulk operation across many devices. Currently: 'all off' (panic switch)."""
+    action = action.lower()
+    exclude_ids = {s.strip() for s in exclude.split(",")} if exclude else set()
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _all():
+        async with open_bridge(host) as bridge:
+            devs = bridge.get_devices()
+            items = list(devs.values()) if isinstance(devs, dict) else devs
+
+            target_area_id: str | None = None
+            if area_name:
+                target_area_id = _resolve_area_id(bridge.areas, area_name)
+                if target_area_id is None:
+                    raise click.ClickException(f"Area not found: {area_name!r}")
+
+            affected: list[dict] = []
+            skipped: list[dict] = []
+            for dev in items:
+                dev_id = str(dev.get("device_id") or dev.get("id") or "")
+                if not dev_id:
+                    continue
+                domain = dev.get("domain") or dev.get("type")
+                if domain and str(domain).lower() not in CONTROLLABLE_DOMAINS:
+                    # Sensors, Picos, keypad LEDs etc.
+                    continue
+                if dev_id in exclude_ids:
+                    skipped.append({"device_id": dev_id, "reason": "excluded"})
+                    continue
+                if target_area_id and _device_area_id(dev) != target_area_id:
+                    continue
+                try:
+                    if fade is not None:
+                        await bridge.set_value(
+                            dev_id, 0, fade_time=timedelta(seconds=fade)
+                        )
+                    else:
+                        await bridge.turn_off(dev_id)
+                    affected.append({"device_id": dev_id, "name": dev.get("name")})
+                except Exception as err:  # noqa: BLE001
+                    skipped.append(
+                        {"device_id": dev_id, "name": dev.get("name"), "error": str(err)}
+                    )
+
+            return {
+                "action": action,
+                "area": area_name,
+                "fade": fade,
+                "affected": affected,
+                "skipped": skipped,
+                "count": len(affected),
+            }
+
+    _json(run_async(_all()))
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: info — bridge + library status
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def info(ctx):
+    """Show bridge connection status, device/scene/area counts, and CLI version."""
+    from importlib.metadata import version as pkg_version
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _info():
+        async with open_bridge(host) as bridge:
+            devs = bridge.get_devices()
+            scenes_map = bridge.get_scenes()
+            areas_map = bridge.areas or {}
+            return {
+                "host": host,
+                "connected": bool(bridge.is_connected()),
+                "logged_in": bool(bridge.logged_in),
+                "devices": len(devs) if isinstance(devs, dict) else len(list(devs)),
+                "scenes": len(scenes_map)
+                if isinstance(scenes_map, dict)
+                else len(list(scenes_map)),
+                "areas": len(areas_map) if isinstance(areas_map, dict) else len(list(areas_map)),
+                "versions": {
+                    "lutron_cli": pkg_version("lutron-cli"),
+                    "pylutron_caseta": pkg_version("pylutron-caseta"),
+                },
+            }
+
+    _json(run_async(_info()))
+
+
+# ---------------------------------------------------------------------------
+# Phase 4: export — full snapshot of bridge state for backup / diffing
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.pass_context
+def export(ctx):
+    """Dump a full JSON snapshot of areas, devices, scenes, and occupancy groups."""
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _export():
+        async with open_bridge(host) as bridge:
+            def _listify(d):
+                return list(d.values()) if isinstance(d, dict) else (d or [])
+
+            return {
+                "host": host,
+                "areas": _listify(bridge.areas),
+                "devices": _listify(bridge.get_devices()),
+                "scenes": _listify(bridge.get_scenes()),
+                "occupancy_groups": _listify(bridge.occupancy_groups),
+                "buttons": _listify(bridge.get_buttons()),
+            }
+
+    _json(run_async(_export()))

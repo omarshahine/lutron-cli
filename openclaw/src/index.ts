@@ -114,44 +114,173 @@ const TOOLS: ToolSpec[] = [
     argv: (params) => ["status", String(params.device_id)],
   },
   {
-    name: "lutron_turn_off",
-    label: "Turn Off",
-    description: "Turn off a device by device_id, with an optional fade duration in seconds.",
+    name: "lutron_set_level",
+    label: "Set Device Level",
+    description:
+      "Set a light, dimmer, or switch to a specific level 0-100. Use 0 to turn off, 100 to turn fully on, anything in between to dim. This is the single tool for on/off/dim — there is no separate 'turn on' or 'turn off'.",
     parameters: {
       type: "object",
       properties: {
         device_id: { type: "string", description: "Device id from lutron_devices" },
+        level: {
+          type: "number",
+          description: "Level 0-100 (0 = off, 100 = full on)",
+          minimum: 0,
+          maximum: 100,
+        },
         fade: { type: "number", description: "Fade time in seconds" },
       },
-      required: ["device_id"],
+      required: ["device_id", "level"],
     },
     argv: (params) => {
-      const args = ["off", String(params.device_id)];
+      const args = ["level", String(params.device_id), String(params.level)];
       if (typeof params.fade === "number") args.push("--fade", String(params.fade));
       return args;
     },
   },
   {
-    name: "lutron_away_status",
-    label: "Smart Away Status",
-    description: "Return current Smart Away state (Enabled/Disabled).",
-    parameters: { type: "object", properties: {} },
-    argv: () => ["away"],
-  },
-  {
-    name: "lutron_away_on",
-    label: "Enable Smart Away",
+    name: "lutron_set_fan",
+    label: "Set Fan Speed",
     description:
-      "Enable Smart Away (simulates occupancy by cycling lights while away).",
-    parameters: { type: "object", properties: {} },
-    argv: () => ["away", "on"],
+      "Set a Caseta fan controller to Off, Low, Medium, MediumHigh, or High.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: { type: "string", description: "Fan device id from lutron_devices" },
+        speed: {
+          type: "string",
+          enum: ["Off", "Low", "Medium", "MediumHigh", "High"],
+          description: "Fan speed preset",
+        },
+      },
+      required: ["device_id", "speed"],
+    },
+    argv: (params) => ["fan", String(params.device_id), String(params.speed)],
   },
   {
-    name: "lutron_away_off",
-    label: "Disable Smart Away",
-    description: "Disable Smart Away.",
-    parameters: { type: "object", properties: {} },
-    argv: () => ["away", "off"],
+    name: "lutron_cover",
+    label: "Control Shade / Blind",
+    description:
+      "Raise, lower, or stop a shade or blind. Optional tilt (0-100) for tiltable blinds.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: { type: "string", description: "Cover device id from lutron_devices" },
+        action: {
+          type: "string",
+          enum: ["up", "down", "stop"],
+          description: "Raise, lower, or stop the cover",
+        },
+        tilt: { type: "number", description: "Tilt 0-100 (tiltable blinds only)" },
+      },
+      required: ["device_id", "action"],
+    },
+    argv: (params) => {
+      const args = ["cover", String(params.device_id), String(params.action)];
+      if (typeof params.tilt === "number") args.push("--tilt", String(params.tilt));
+      return args;
+    },
+  },
+  {
+    name: "lutron_warm_dim",
+    label: "Set Warm Dim",
+    description:
+      "Set warm-dim level on a warm-dim-capable bulb. Dims warmer as level drops (candle-style).",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: { type: "string", description: "Warm-dim bulb device id" },
+        level: { type: "number", description: "Level 0-100" },
+        fade: { type: "number", description: "Fade time in seconds" },
+        disable: {
+          type: "boolean",
+          description: "Disable warm-dim mode while still setting the level",
+        },
+      },
+      required: ["device_id", "level"],
+    },
+    argv: (params) => {
+      const args = ["warm", String(params.device_id), String(params.level)];
+      if (typeof params.fade === "number") args.push("--fade", String(params.fade));
+      if (params.disable === true) args.push("--disable");
+      return args;
+    },
+  },
+  {
+    name: "lutron_buttons",
+    label: "List Buttons",
+    description:
+      "List Pico / keypad buttons. Optionally filter by parent device. Returns button ids for lutron_tap.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: {
+          type: "string",
+          description: "Filter to buttons on a specific Pico/keypad",
+        },
+      },
+    },
+    argv: (params) => {
+      const args = ["buttons"];
+      if (params.device_id) args.push("--device", String(params.device_id));
+      return args;
+    },
+  },
+  {
+    name: "lutron_tap",
+    label: "Tap Button",
+    description:
+      "Simulate a Pico or keypad button press by button_id. Use lutron_buttons to look up ids.",
+    parameters: {
+      type: "object",
+      properties: {
+        button_id: { type: "string", description: "Button id from lutron_buttons" },
+      },
+      required: ["button_id"],
+    },
+    argv: (params) => ["tap", String(params.button_id)],
+  },
+  {
+    name: "lutron_battery",
+    label: "Battery Status",
+    description:
+      "Get battery status for one device, or scan all battery-powered devices when device_id is omitted.",
+    parameters: {
+      type: "object",
+      properties: {
+        device_id: {
+          type: "string",
+          description: "Optional device id; omit to scan all battery-powered devices",
+        },
+      },
+    },
+    argv: (params) => {
+      const args = ["battery"];
+      if (params.device_id) args.push(String(params.device_id));
+      return args;
+    },
+  },
+  {
+    name: "lutron_smart_away",
+    label: "Smart Away",
+    description:
+      "Check, enable, or disable Smart Away (vacation mode that simulates occupancy by cycling lights). Pass action: 'status' to check current state (default), 'on' to enable, 'off' to disable.",
+    parameters: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["status", "on", "off"],
+          description: "What to do: check status (default), enable, or disable",
+        },
+      },
+    },
+    argv: (params) => {
+      const action = typeof params.action === "string" ? params.action : "status";
+      if (action === "on") return ["away", "on"];
+      if (action === "off") return ["away", "off"];
+      return ["away"]; // status
+    },
   },
   {
     name: "lutron_areas",
@@ -166,6 +295,49 @@ const TOOLS: ToolSpec[] = [
     description: "List occupancy groups with their current Occupied/Unoccupied status.",
     parameters: { type: "object", properties: {} },
     argv: () => ["occupancy"],
+  },
+  {
+    name: "lutron_all_off",
+    label: "All Off",
+    description:
+      "Panic switch: turn off every controllable device (lights, switches, fans, covers). Pass `area` to limit to one room, `exclude` (comma-separated device ids) to spare specific devices, and `fade` seconds for a graceful dim-down. Returns the list of affected device ids.",
+    parameters: {
+      type: "object",
+      properties: {
+        area: {
+          type: "string",
+          description: "Area (room) name — limits the sweep to that area only",
+        },
+        fade: { type: "number", description: "Fade time in seconds" },
+        exclude: {
+          type: "string",
+          description: "Comma-separated device ids to skip (e.g. '5,12')",
+        },
+      },
+    },
+    argv: (params) => {
+      const args = ["all", "off"];
+      if (params.area) args.push("--area", String(params.area));
+      if (typeof params.fade === "number") args.push("--fade", String(params.fade));
+      if (params.exclude) args.push("--exclude", String(params.exclude));
+      return args;
+    },
+  },
+  {
+    name: "lutron_info",
+    label: "Bridge Info",
+    description:
+      "Report bridge connection state, device/scene/area counts, and CLI/library versions. Use to sanity-check the connection or surface a quick health summary.",
+    parameters: { type: "object", properties: {} },
+    argv: () => ["info"],
+  },
+  {
+    name: "lutron_export",
+    label: "Export Bridge State",
+    description:
+      "Return a full JSON snapshot of areas, devices, scenes, occupancy groups, and buttons. Useful for backup, diffing after a config change, or seeding home-automation logic.",
+    parameters: { type: "object", properties: {} },
+    argv: () => ["export"],
   },
 ];
 
