@@ -100,7 +100,7 @@ lutron_cover { device_id: "<id>", action: "down" }
 **Fire a Pico button remotely**
 ```
 lutron_devices { domain: "sensor" } → find the Pico device_id
-lutron_buttons { device_id: "<pico_id>" } → pick the button_number you want
+lutron_buttons { device_id: "<pico_id>" } → pick the button_id you want (button dict also includes button_number for human reference)
 lutron_tap { button_id: "<button_id>" }
 ```
 

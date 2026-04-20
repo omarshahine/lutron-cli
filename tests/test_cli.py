@@ -127,6 +127,18 @@ def test_level_rejects_out_of_range() -> None:
     assert "between 0 and 100" in result.output
 
 
+def test_on_rejects_level_zero() -> None:
+    """`on --level 0` should be rejected; use `off` instead."""
+    result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "on", "5", "--level", "0"])
+    assert result.exit_code != 0
+    assert "between 1 and 100" in result.output or "off" in result.output.lower()
+
+
+def test_on_rejects_level_over_100() -> None:
+    result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "on", "5", "--level", "150"])
+    assert result.exit_code != 0
+
+
 def test_cover_action_is_case_insensitive() -> None:
     """Accept 'UP' / 'Up' / 'up' before we even hit bridge connection."""
     # Missing certs should be the failure mode, not Click arg parsing.

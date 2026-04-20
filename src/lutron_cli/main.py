@@ -214,9 +214,14 @@ def off(ctx, device_id, fade):
 @click.option("--fade", default=None, type=float, help="Fade time in seconds.")
 @click.pass_context
 def on(ctx, device_id, level, fade):
-    """Turn on a device, optionally at a specific level with fade."""
-    if level is not None and not 0 <= level <= 100:
-        raise click.BadParameter("--level must be between 0 and 100.")
+    """Turn on a device, optionally at a specific level with fade.
+
+    Rejects --level 0 — use `lutron off <id>` to turn a device off.
+    """
+    if level is not None and not 1 <= level <= 100:
+        raise click.BadParameter(
+            "--level must be between 1 and 100 for 'on'. Use 'lutron off' to turn off."
+        )
 
     host = _resolve_host(ctx.obj["host"])
 
@@ -421,7 +426,12 @@ def tap(ctx, button_id):
 @click.argument("device_id", required=False)
 @click.pass_context
 def battery(ctx, device_id):
-    """Get battery status for a device, or all battery-powered devices."""
+    """Get battery status for a device, or all battery-powered devices.
+
+    Without an id, queries only devices in the 'sensor' domain (Picos, keypads,
+    occupancy sensors) — not every device on the bridge — to avoid N round-trips
+    against non-battery devices.
+    """
     host = _resolve_host(ctx.obj["host"])
 
     async def _battery():
@@ -429,16 +439,17 @@ def battery(ctx, device_id):
             if device_id:
                 status_val = await bridge.get_battery_status(device_id)
                 return {"device_id": device_id, "battery_status": status_val}
-            devs = bridge.get_devices()
-            items = list(devs.values()) if isinstance(devs, dict) else devs
+            # Only Picos / keypads / sensors carry batteries. Filtering up front
+            # turns an O(N_all_devices) scan into O(N_battery_candidates).
+            candidates = bridge.get_devices_by_domain("sensor")
             results = []
-            for dev in items:
-                dev_id = dev.get("device_id") or dev.get("id")
+            for dev in candidates:
+                dev_id = dev.get("device_id")
                 if not dev_id:
                     continue
                 try:
                     status_val = await bridge.get_battery_status(dev_id)
-                except Exception:  # noqa: BLE001 - library may raise for non-battery devices
+                except Exception:  # noqa: BLE001 - library may raise on odd devices
                     continue
                 if status_val is None:
                     continue
@@ -446,6 +457,7 @@ def battery(ctx, device_id):
                     {
                         "device_id": dev_id,
                         "name": dev.get("name"),
+                        "type": dev.get("type"),
                         "battery_status": status_val,
                     }
                 )
@@ -574,20 +586,14 @@ def occupancy(ctx):
 # ---------------------------------------------------------------------------
 # Phase 2: `all off` — panic switch for everything, optionally scoped to an area
 # ---------------------------------------------------------------------------
-CONTROLLABLE_DOMAINS = {"light", "switch", "fan", "cover"}
-
-
-def _device_area_id(device: dict) -> str | None:
-    """Return the area id for a device, accepting any of the shapes pylutron-caseta uses."""
-    return (
-        device.get("area")
-        or device.get("area_id")
-        or (device.get("parent_area") or {}).get("href")
-    )
+# Only devices in these domains can be turned off. The library classifies each
+# device's type into a domain via _LEAP_DEVICE_TYPES; we rely on the library's
+# own classifier (get_devices_by_domain) rather than sniffing the dict ourselves.
+CONTROLLABLE_DOMAINS = ("light", "switch", "fan", "cover")
 
 
 def _resolve_area_id(areas: dict, name: str) -> str | None:
-    """Map an area name (case-insensitive) to its id."""
+    """Map an area name (case-insensitive) to its id (the dict key)."""
     for area_id, area in (areas or {}).items():
         if str(area.get("name", "")).lower() == name.lower():
             return area_id
@@ -613,8 +619,12 @@ def all_cmd(ctx, action, area_name, fade, exclude):
 
     async def _all():
         async with open_bridge(host) as bridge:
-            devs = bridge.get_devices()
-            items = list(devs.values()) if isinstance(devs, dict) else devs
+            # Ask the library which devices are actually controllable. Picos,
+            # keypads, occupancy sensors, and keypad LEDs are deliberately
+            # excluded by not being in any of these domains.
+            items: list[dict] = []
+            for domain in CONTROLLABLE_DOMAINS:
+                items.extend(bridge.get_devices_by_domain(domain))
 
             target_area_id: str | None = None
             if area_name:
@@ -625,17 +635,15 @@ def all_cmd(ctx, action, area_name, fade, exclude):
             affected: list[dict] = []
             skipped: list[dict] = []
             for dev in items:
-                dev_id = str(dev.get("device_id") or dev.get("id") or "")
+                dev_id = str(dev.get("device_id") or "")
                 if not dev_id:
-                    continue
-                domain = dev.get("domain") or dev.get("type")
-                if domain and str(domain).lower() not in CONTROLLABLE_DOMAINS:
-                    # Sensors, Picos, keypad LEDs etc.
                     continue
                 if dev_id in exclude_ids:
                     skipped.append({"device_id": dev_id, "reason": "excluded"})
                     continue
-                if target_area_id and _device_area_id(dev) != target_area_id:
+                # `_load_devices` stores `area=area_id` (already id_from_href'd),
+                # matching the keys in bridge.areas — no format dance needed.
+                if target_area_id and str(dev.get("area")) != str(target_area_id):
                     continue
                 try:
                     if fade is not None:
@@ -678,10 +686,11 @@ def info(ctx):
             devs = bridge.get_devices()
             scenes_map = bridge.get_scenes()
             areas_map = bridge.areas or {}
+            # `is_connected()` is defined as `return self.logged_in`, so we
+            # only surface one of them. Keep the more descriptive method call.
             return {
                 "host": host,
                 "connected": bool(bridge.is_connected()),
-                "logged_in": bool(bridge.logged_in),
                 "devices": len(devs) if isinstance(devs, dict) else len(list(devs)),
                 "scenes": len(scenes_map)
                 if isinstance(scenes_map, dict)

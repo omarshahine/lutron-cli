@@ -117,7 +117,7 @@ const TOOLS: ToolSpec[] = [
     name: "lutron_set_level",
     label: "Set Device Level",
     description:
-      "Set a light, dimmer, or switch to a specific level 0-100. Use 0 to turn off, 100 to turn fully on, anything in between to dim. This is the single tool for on/off/dim — there is no separate 'turn on' or 'turn off'.",
+      "Set a light, dimmer, or switch to a specific level 0-100. Use 0 to turn off, 100 to turn fully on, anything in between to dim. This is the single tool for on/off/dim — there is no separate 'turn on' or 'turn off'. When level is 0, this routes through the bridge's native turn_off call for a clean off (matching the CLI's `off` subcommand); non-zero levels route through set_value for dim-to-level semantics.",
     parameters: {
       type: "object",
       properties: {
@@ -133,7 +133,16 @@ const TOOLS: ToolSpec[] = [
       required: ["device_id", "level"],
     },
     argv: (params) => {
-      const args = ["level", String(params.device_id), String(params.level)];
+      // Route level=0 through `off` for parity with the bridge's native
+      // turn_off call. Fade semantics are preserved in both paths because
+      // the `off` CLI subcommand also accepts --fade.
+      const level = Number(params.level);
+      if (level === 0) {
+        const args = ["off", String(params.device_id)];
+        if (typeof params.fade === "number") args.push("--fade", String(params.fade));
+        return args;
+      }
+      const args = ["level", String(params.device_id), String(level)];
       if (typeof params.fade === "number") args.push("--fade", String(params.fade));
       return args;
     },
