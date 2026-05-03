@@ -2,8 +2,10 @@
   "id": "lutron-caseta",
   "name": "Lutron Caseta",
   "description": "Control Lutron Caseta lighting: activate scenes, toggle Smart Away, inspect devices/areas/occupancy via the lutron CLI.",
-  "version": "0.1.0",
-  "skills": ["skills/lutron"],
+  "version": "0.1.1",
+  "skills": [
+    "skills/lutron"
+  ],
   "configSchema": {
     "type": "object",
     "properties": {

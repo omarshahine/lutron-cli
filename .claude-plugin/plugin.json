@@ -1,6 +1,6 @@
 {
   "name": "lutron-caseta",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Control Lutron Caseta lighting via the lutron CLI: scenes, Smart Away, devices, areas, occupancy.",
   "author": {
     "name": "Omar Shahine",
