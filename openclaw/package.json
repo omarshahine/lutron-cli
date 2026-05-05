@@ -1,6 +1,6 @@
 {
   "name": "openclaw-lutron",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "OpenClaw plugin for Lutron Caseta smart lighting control (scenes, Smart Away, devices, areas)",
   "type": "module",
   "openclaw": {
@@ -12,6 +12,9 @@
     },
     "build": {
       "openclawVersion": "2026.4.15"
+    },
+    "environment": {
+      "binaries": ["lutron"]
     }
   },
   "files": [
