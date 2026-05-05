@@ -6,11 +6,8 @@
  * emits JSON on every command by design.
  */
 
-import { execFile, execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { runCli, whichBinary } from "./safe-shell.js";
 
 interface PluginConfig {
   cliPath?: string;
@@ -364,12 +361,8 @@ function resolveCliPath(config?: PluginConfig): string {
   if (envPath && existsSync(envPath)) {
     return envPath;
   }
-  try {
-    const out = execFileSync("which", ["lutron"], { encoding: "utf8" }).trim();
-    if (out) return out;
-  } catch {
-    // not on PATH
-  }
+  const onPath = whichBinary("lutron");
+  if (onPath) return onPath;
   // Last resort: rely on PATH at exec time — Node will raise ENOENT with a
   // clear message, which we turn into installation instructions below.
   return config?.cliPath || "lutron";
@@ -403,8 +396,7 @@ export default function activate(context: OpenClawContext): void {
       async execute(_toolCallId, params) {
         const args = [...hostArgs, ...spec.argv(params)];
         try {
-          const { stdout } = await execFileAsync(cliPath, args, {
-            encoding: "utf8",
+          const { stdout } = await runCli(cliPath, args, {
             timeout: 30_000,
             maxBuffer: 2 * 1024 * 1024,
           });
