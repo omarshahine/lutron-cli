@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install + build (compile TS so the ClawHub validator finds dist/index.js)
+        run: |
+          npm install
+          npm run build
+
       - name: Install clawhub CLI
         run: npm install -g clawhub
 

@@ -8,7 +8,7 @@
       "name": "openclaw-lutron",
       "source": "openclaw",
       "description": "Control Lutron Caseta lighting: scenes, Smart Away, devices, areas, occupancy.",
-      "version": "0.1.3"
+      "version": "0.1.4"
     }
   ]
 }
