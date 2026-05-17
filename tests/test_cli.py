@@ -151,3 +151,17 @@ def test_fan_rejects_unknown_speed() -> None:
     result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "fan", "5", "turbo"])
     assert result.exit_code != 0
     assert "Invalid value" in result.output or "'turbo'" in result.output
+
+
+def test_rename_rejects_empty_name() -> None:
+    """Empty new_name must be rejected before any bridge contact."""
+    result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "rename", "5", ""])
+    assert result.exit_code != 0
+    assert "must not be empty" in result.output
+
+
+def test_rename_rejects_whitespace_only_name() -> None:
+    """Whitespace-only new_name must also be rejected."""
+    result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "rename", "5", "   "])
+    assert result.exit_code != 0
+    assert "must not be empty" in result.output

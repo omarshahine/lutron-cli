@@ -182,6 +182,11 @@ def rename(ctx, device_id, new_name, dry_run):
     Example:
         lutron rename 41 "Blinds"
     """
+    if not new_name or not new_name.strip():
+        raise click.BadParameter(
+            "new_name must not be empty.", param_hint="'NEW_NAME'"
+        )
+
     host = _resolve_host(ctx.obj["host"])
 
     async def _rename():
@@ -207,7 +212,11 @@ def rename(ctx, device_id, new_name, dry_run):
                 "UpdateRequest", href, {"Device": {"Name": new_name}}
             )
             after = await bridge._request("ReadRequest", href)
-            after_dev = after.Body.get("Device") if after.Body else {}
+            after_dev = after.Body.get("Device") if after.Body else None
+            if after_dev is None:
+                raise click.ClickException(
+                    f"Device {device_id} disappeared after rename (read-back returned no Body)"
+                )
             return {
                 "device_id": device_id,
                 "renamed": before_name != after_dev.get("Name"),
