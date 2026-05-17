@@ -28,6 +28,7 @@ EXPECTED_COMMANDS = {
     "off",
     "on",
     "pair",
+    "rename",
     "scan",
     "scene",
     "scenes",

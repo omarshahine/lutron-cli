@@ -161,6 +161,67 @@ def devices(ctx, domain):
 
 
 # ---------------------------------------------------------------------------
+# rename
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.argument("new_name")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would change without writing to the bridge.",
+)
+@click.pass_context
+def rename(ctx, device_id, new_name, dry_run):
+    """Rename a device's Name field on the bridge.
+
+    Sends `UpdateRequest /device/<id>` with `{Device: {Name: "<new>"}}`.
+    The FullyQualifiedName is recomputed by the bridge from
+    `[Area.Name, Device.Name]` — pass just the device-portion of the name.
+
+    Example:
+        lutron rename 41 "Blinds"
+    """
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _rename():
+        async with open_bridge(host) as bridge:
+            href = f"/device/{device_id}"
+            before = await bridge._request("ReadRequest", href)
+            before_dev = before.Body.get("Device") if before.Body else None
+            if before_dev is None:
+                raise click.ClickException(f"Device {device_id} not found")
+
+            before_name = before_dev.get("Name")
+            before_fqn = before_dev.get("FullyQualifiedName")
+
+            if dry_run:
+                return {
+                    "device_id": device_id,
+                    "dry_run": True,
+                    "before": {"Name": before_name, "FullyQualifiedName": before_fqn},
+                    "would_send": {"Device": {"Name": new_name}},
+                }
+
+            await bridge._request(
+                "UpdateRequest", href, {"Device": {"Name": new_name}}
+            )
+            after = await bridge._request("ReadRequest", href)
+            after_dev = after.Body.get("Device") if after.Body else {}
+            return {
+                "device_id": device_id,
+                "renamed": before_name != after_dev.get("Name"),
+                "before": {"Name": before_name, "FullyQualifiedName": before_fqn},
+                "after": {
+                    "Name": after_dev.get("Name"),
+                    "FullyQualifiedName": after_dev.get("FullyQualifiedName"),
+                },
+            }
+
+    _json(run_async(_rename()))
+
+
+# ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
 @cli.command()
