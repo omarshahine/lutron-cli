@@ -10,3 +10,6 @@ build/
 *.tsbuildinfo
 .cache/
 package-lock.json
+
+# Clawpatch local review state
+.clawpatch/
