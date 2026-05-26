@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-05-26
+
+### Added
+- `lutron area` command group with `list` / `rename` / `delete` / `create`
+  subcommands. Uses the underlying LEAP primitives
+  (`UpdateRequest`/`DeleteRequest`/`CreateRequest` against `/area/<id>` and
+  `/area`) directly through `bridge._request()`.
+- `lutron move <device_id> <area_id>` — reassign a device to a different
+  area; the bridge recomputes `FullyQualifiedName` automatically.
+- Safety guard: `area delete` refuses to delete a non-empty area unless
+  `--force` is passed.
+- All new write commands support `--dry-run`.
+
 ## [0.1.0] - 2026-04-18
 
 ### Added
@@ -27,5 +40,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   callback is invoked with `zeroconf=` as a keyword argument. Renamed the
   callback parameter from `zc` to `zeroconf`.
 
-[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.8
 [0.1.0]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.0
