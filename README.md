@@ -8,11 +8,23 @@ it out of the box.
 
 ## Install
 
+### Homebrew (recommended on macOS)
+
+```bash
+brew install omarshahine/tap/lutron-cli
+```
+
+Upgrades land via `brew update && brew upgrade lutron-cli`. First-time install
+takes ~2-3 min because `cryptography` builds from source; subsequent upgrades
+reuse the bottle cache.
+
+### pipx (any OS with Python 3.10+)
+
 ```bash
 pipx install git+https://github.com/omarshahine/lutron-cli
 ```
 
-Or for development:
+### For development
 
 ```bash
 git clone https://github.com/omarshahine/lutron-cli
