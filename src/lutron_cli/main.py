@@ -231,6 +231,337 @@ def rename(ctx, device_id, new_name, dry_run):
 
 
 # ---------------------------------------------------------------------------
+# move (device -> different area)
+# ---------------------------------------------------------------------------
+@cli.command()
+@click.argument("device_id")
+@click.argument("area_id")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would change without writing to the bridge.",
+)
+@click.pass_context
+def move(ctx, device_id, area_id, dry_run):
+    """Move a device to a different area.
+
+    Sends `UpdateRequest /device/<id>` with
+    `{Device: {AssociatedArea: {href: "/area/<area_id>"}}}`. The bridge
+    recomputes FullyQualifiedName from the new area + existing device name.
+
+    Example:
+        lutron move 47 25      # move device 47 into area 25
+    """
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _move():
+        async with open_bridge(host) as bridge:
+            dev_href = f"/device/{device_id}"
+            area_href = f"/area/{area_id}"
+
+            before = await bridge._request("ReadRequest", dev_href)
+            before_dev = before.Body.get("Device") if before.Body else None
+            if before_dev is None:
+                raise click.ClickException(f"Device {device_id} not found")
+
+            before_area = before_dev.get("AssociatedArea", {}).get("href")
+            before_fqn = before_dev.get("FullyQualifiedName")
+
+            # Verify target area exists before we mutate. Two checks:
+            #   (a) the request itself doesn't error, and
+            #   (b) the response actually carries an `Area` object — some
+            #       Caseta firmwares answer not-found with a 200 + empty body.
+            try:
+                area_check = await bridge._request("ReadRequest", area_href)
+            except Exception as exc:
+                raise click.ClickException(
+                    f"Area {area_id} not found: {exc}"
+                ) from exc
+            target_area = area_check.Body.get("Area") if area_check.Body else None
+            if target_area is None:
+                raise click.ClickException(f"Area {area_id} not found")
+            target_area_name = target_area.get("Name")
+
+            if dry_run:
+                return {
+                    "device_id": device_id,
+                    "area_id": area_id,
+                    "dry_run": True,
+                    "before": {
+                        "AssociatedArea": before_area,
+                        "FullyQualifiedName": before_fqn,
+                    },
+                    "would_send": {
+                        "Device": {"AssociatedArea": {"href": area_href}}
+                    },
+                    "target_area_name": target_area_name,
+                }
+
+            await bridge._request(
+                "UpdateRequest",
+                dev_href,
+                {"Device": {"AssociatedArea": {"href": area_href}}},
+            )
+            after = await bridge._request("ReadRequest", dev_href)
+            after_dev = after.Body.get("Device") if after.Body else None
+            if after_dev is None:
+                raise click.ClickException(
+                    f"Device {device_id} disappeared after move "
+                    "(read-back returned no Body)"
+                )
+            return {
+                "device_id": device_id,
+                "area_id": area_id,
+                "moved": before_area != after_dev.get("AssociatedArea", {}).get("href"),
+                "before": {
+                    "AssociatedArea": before_area,
+                    "FullyQualifiedName": before_fqn,
+                },
+                "after": {
+                    "AssociatedArea": after_dev.get("AssociatedArea", {}).get("href"),
+                    "FullyQualifiedName": after_dev.get("FullyQualifiedName"),
+                },
+            }
+
+    _json(run_async(_move()))
+
+
+# ---------------------------------------------------------------------------
+# area (group)
+# ---------------------------------------------------------------------------
+@cli.group()
+def area():
+    """Manage Lutron areas (rooms).
+
+    Areas are containers for devices. The bridge composes each device's
+    FullyQualifiedName from [Area.Name, Device.Name], so renaming or moving
+    accessories between areas changes what shows in the Lutron app and (for
+    bridged accessories) in HomeKit.
+    """
+
+
+@area.command("list")
+@click.pass_context
+def area_list(ctx):
+    """List all areas (alias for the top-level `areas` command)."""
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _list():
+        async with open_bridge(host) as bridge:
+            a = bridge.areas
+            return list(a.values()) if isinstance(a, dict) else a
+
+    _json(run_async(_list()))
+
+
+@area.command("rename")
+@click.argument("area_id")
+@click.argument("new_name")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would change without writing to the bridge.",
+)
+@click.pass_context
+def area_rename(ctx, area_id, new_name, dry_run):
+    """Rename an area.
+
+    Sends `UpdateRequest /area/<id>` with `{Area: {Name: "<new>"}}`. All
+    devices in the area get their FullyQualifiedName recomputed automatically.
+
+    Example:
+        lutron area rename 19 "Front Hallway"
+    """
+    if not new_name or not new_name.strip():
+        raise click.BadParameter(
+            "new_name must not be empty.", param_hint="'NEW_NAME'"
+        )
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _rename():
+        async with open_bridge(host) as bridge:
+            href = f"/area/{area_id}"
+            before = await bridge._request("ReadRequest", href)
+            before_area = before.Body.get("Area") if before.Body else None
+            if before_area is None:
+                raise click.ClickException(f"Area {area_id} not found")
+
+            before_name = before_area.get("Name")
+
+            if dry_run:
+                return {
+                    "area_id": area_id,
+                    "dry_run": True,
+                    "before": {"Name": before_name},
+                    "would_send": {"Area": {"Name": new_name}},
+                }
+
+            await bridge._request("UpdateRequest", href, {"Area": {"Name": new_name}})
+            after = await bridge._request("ReadRequest", href)
+            after_area = after.Body.get("Area") if after.Body else None
+            return {
+                "area_id": area_id,
+                "renamed": before_name != (after_area.get("Name") if after_area else None),
+                "before": {"Name": before_name},
+                "after": {"Name": after_area.get("Name") if after_area else None},
+            }
+
+    _json(run_async(_rename()))
+
+
+@area.command("delete")
+@click.argument("area_id")
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Delete even if the area still contains devices.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would happen without writing to the bridge.",
+)
+@click.pass_context
+def area_delete(ctx, area_id, force, dry_run):
+    """Delete an area.
+
+    By default refuses to delete an area that still has devices; use `--force`
+    to override. Sends `DeleteRequest /area/<id>`.
+
+    Example:
+        lutron area delete 4
+    """
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _delete():
+        async with open_bridge(host) as bridge:
+            href = f"/area/{area_id}"
+
+            # Read the area first — gives us the name for the response and
+            # confirms it exists before we try anything destructive.
+            try:
+                before = await bridge._request("ReadRequest", href)
+            except Exception as exc:
+                raise click.ClickException(f"Area {area_id} not found: {exc}") from exc
+            before_area = before.Body.get("Area") if before.Body else None
+            if before_area is None:
+                raise click.ClickException(f"Area {area_id} not found")
+            name = before_area.get("Name")
+
+            # Count devices in this area.
+            devices = bridge.devices
+            in_area = [
+                d
+                for d in (devices.values() if isinstance(devices, dict) else devices or [])
+                if str(d.get("area") or "") == str(area_id)
+            ]
+
+            blocked_by_devices = bool(in_area) and not force
+
+            if dry_run:
+                # Dry-run should always be informative. For non-empty areas
+                # without --force, surface what's blocking instead of erroring,
+                # so the caller can decide whether to add --force.
+                return {
+                    "area_id": area_id,
+                    "name": name,
+                    "dry_run": True,
+                    "device_count": len(in_area),
+                    "force": force,
+                    "blocked_by_devices": blocked_by_devices,
+                    "would_send": (
+                        None if blocked_by_devices else {"DeleteRequest": href}
+                    ),
+                }
+
+            if blocked_by_devices:
+                raise click.ClickException(
+                    f"Area {area_id} ({name!r}) still has {len(in_area)} device(s). "
+                    "Move them first, or pass --force."
+                )
+
+            r = await bridge._request("DeleteRequest", href)
+            return {
+                "area_id": area_id,
+                "name": name,
+                "deleted": r.CommuniqueType == "DeleteResponse",
+                "device_count": len(in_area),
+                "force": force,
+            }
+
+    _json(run_async(_delete()))
+
+
+@area.command("create")
+@click.argument("name")
+@click.option(
+    "--parent",
+    "parent_id",
+    default="1",
+    show_default=True,
+    help="Parent area id. Default is `1` (the root area, where top-level rooms live).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would happen without writing to the bridge.",
+)
+@click.pass_context
+def area_create(ctx, name, parent_id, dry_run):
+    """Create a new area under the given parent (default: root, id=1).
+
+    Sends `CreateRequest /area` with
+    `{Area: {Name, Parent: {href: "/area/<parent>"}}}`. The bridge returns
+    the new area's href; the numeric id is the last path segment.
+
+    Example:
+        lutron area create "Mudroom"
+    """
+    if not name or not name.strip():
+        raise click.BadParameter(
+            "name must not be empty.", param_hint="'NAME'"
+        )
+
+    body = {"Area": {"Name": name, "Parent": {"href": f"/area/{parent_id}"}}}
+
+    # Dry-run is constructed entirely from CLI arguments — no need to pay the
+    # ~2-3s bridge connect cost just to echo the payload back.
+    if dry_run:
+        _json(
+            {
+                "dry_run": True,
+                "name": name,
+                "parent_id": parent_id,
+                "would_send": {"CreateRequest /area": body},
+            }
+        )
+        return
+
+    host = _resolve_host(ctx.obj["host"])
+
+    async def _create():
+        async with open_bridge(host) as bridge:
+            r = await bridge._request("CreateRequest", "/area", body)
+            new_area = r.Body.get("Area") if r.Body else None
+            if new_area is None:
+                raise click.ClickException(
+                    f"CreateRequest /area returned no Area in Body: {r!r}"
+                )
+            new_href = new_area.get("href", "")
+            new_id = new_href.rsplit("/", 1)[-1] if new_href else None
+            return {
+                "created": True,
+                "area_id": new_id,
+                "name": new_area.get("Name"),
+                "href": new_href,
+                "parent_id": parent_id,
+            }
+
+    _json(run_async(_create()))
+
+
+# ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
 @cli.command()

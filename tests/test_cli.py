@@ -13,6 +13,7 @@ from lutron_cli.main import cli
 
 EXPECTED_COMMANDS = {
     "all",
+    "area",
     "areas",
     "away",
     "battery",
@@ -24,6 +25,7 @@ EXPECTED_COMMANDS = {
     "fan",
     "info",
     "level",
+    "move",
     "occupancy",
     "off",
     "on",
@@ -163,5 +165,53 @@ def test_rename_rejects_empty_name() -> None:
 def test_rename_rejects_whitespace_only_name() -> None:
     """Whitespace-only new_name must also be rejected."""
     result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "rename", "5", "   "])
+    assert result.exit_code != 0
+    assert "must not be empty" in result.output
+
+
+# ---------------------------------------------------------------------------
+# area subcommand + move tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["area", "--help"],
+        ["area", "list", "--help"],
+        ["area", "rename", "--help"],
+        ["area", "delete", "--help"],
+        ["area", "create", "--help"],
+        ["move", "--help"],
+    ],
+)
+def test_area_and_move_help(argv: list[str]) -> None:
+    """Every area subcommand + the move command renders its --help cleanly."""
+    result = CliRunner().invoke(cli, argv)
+    assert result.exit_code == 0, result.output
+    assert "Usage:" in result.output
+
+
+def test_area_rename_rejects_empty_name() -> None:
+    """Empty area name must be rejected before any bridge contact."""
+    result = CliRunner().invoke(
+        cli, ["--host", "1.2.3.4", "area", "rename", "5", ""]
+    )
+    assert result.exit_code != 0
+    assert "must not be empty" in result.output
+
+
+def test_area_rename_rejects_whitespace_only_name() -> None:
+    """Whitespace-only area name must also be rejected."""
+    result = CliRunner().invoke(
+        cli, ["--host", "1.2.3.4", "area", "rename", "5", "   "]
+    )
+    assert result.exit_code != 0
+    assert "must not be empty" in result.output
+
+
+def test_area_create_rejects_empty_name() -> None:
+    """Empty area name on create must be rejected before any bridge contact."""
+    result = CliRunner().invoke(cli, ["--host", "1.2.3.4", "area", "create", ""])
     assert result.exit_code != 0
     assert "must not be empty" in result.output
