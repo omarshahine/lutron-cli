@@ -267,18 +267,20 @@ def move(ctx, device_id, area_id, dry_run):
             before_area = before_dev.get("AssociatedArea", {}).get("href")
             before_fqn = before_dev.get("FullyQualifiedName")
 
-            # Verify target area exists before we mutate.
+            # Verify target area exists before we mutate. Two checks:
+            #   (a) the request itself doesn't error, and
+            #   (b) the response actually carries an `Area` object — some
+            #       Caseta firmwares answer not-found with a 200 + empty body.
             try:
                 area_check = await bridge._request("ReadRequest", area_href)
-                target_area_name = (
-                    area_check.Body.get("Area", {}).get("Name")
-                    if area_check.Body
-                    else None
-                )
             except Exception as exc:
                 raise click.ClickException(
                     f"Area {area_id} not found: {exc}"
                 ) from exc
+            target_area = area_check.Body.get("Area") if area_check.Body else None
+            if target_area is None:
+                raise click.ClickException(f"Area {area_id} not found")
+            target_area_name = target_area.get("Name")
 
             if dry_run:
                 return {
@@ -455,20 +457,29 @@ def area_delete(ctx, area_id, force, dry_run):
                 if str(d.get("area") or "") == str(area_id)
             ]
 
-            if in_area and not force:
-                raise click.ClickException(
-                    f"Area {area_id} ({name!r}) still has {len(in_area)} device(s). "
-                    "Move them first, or pass --force."
-                )
+            blocked_by_devices = bool(in_area) and not force
 
             if dry_run:
+                # Dry-run should always be informative. For non-empty areas
+                # without --force, surface what's blocking instead of erroring,
+                # so the caller can decide whether to add --force.
                 return {
                     "area_id": area_id,
                     "name": name,
                     "dry_run": True,
                     "device_count": len(in_area),
-                    "would_send": {"DeleteRequest": href},
+                    "force": force,
+                    "blocked_by_devices": blocked_by_devices,
+                    "would_send": (
+                        None if blocked_by_devices else {"DeleteRequest": href}
+                    ),
                 }
+
+            if blocked_by_devices:
+                raise click.ClickException(
+                    f"Area {area_id} ({name!r}) still has {len(in_area)} device(s). "
+                    "Move them first, or pass --force."
+                )
 
             r = await bridge._request("DeleteRequest", href)
             return {
@@ -512,20 +523,25 @@ def area_create(ctx, name, parent_id, dry_run):
             "name must not be empty.", param_hint="'NAME'"
         )
 
+    body = {"Area": {"Name": name, "Parent": {"href": f"/area/{parent_id}"}}}
+
+    # Dry-run is constructed entirely from CLI arguments — no need to pay the
+    # ~2-3s bridge connect cost just to echo the payload back.
+    if dry_run:
+        _json(
+            {
+                "dry_run": True,
+                "name": name,
+                "parent_id": parent_id,
+                "would_send": {"CreateRequest /area": body},
+            }
+        )
+        return
+
     host = _resolve_host(ctx.obj["host"])
 
     async def _create():
         async with open_bridge(host) as bridge:
-            body = {"Area": {"Name": name, "Parent": {"href": f"/area/{parent_id}"}}}
-
-            if dry_run:
-                return {
-                    "dry_run": True,
-                    "name": name,
-                    "parent_id": parent_id,
-                    "would_send": {"CreateRequest /area": body},
-                }
-
             r = await bridge._request("CreateRequest", "/area", body)
             new_area = r.Body.get("Area") if r.Body else None
             if new_area is None:
