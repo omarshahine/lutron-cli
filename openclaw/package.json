@@ -8,13 +8,16 @@
       "./src/index.ts"
     ],
     "compat": {
-      "pluginApi": ">=2026.3.23"
+      "pluginApi": ">=2026.6.5"
     },
     "build": {
-      "openclawVersion": "2026.4.15"
+      "openclawVersion": "2026.6.5",
+      "pluginSdkVersion": "2026.6.5"
     },
     "environment": {
-      "binaries": ["lutron"]
+      "binaries": [
+        "lutron"
+      ]
     }
   },
   "files": [
@@ -25,7 +28,8 @@
   ],
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "prepack": "npm run build"
   },
   "keywords": [
     "openclaw",
@@ -50,10 +54,13 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.19.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "openclaw": "^2026.6.5"
   }
 }
