@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-06-11
+
+### Added
+- OpenClaw plugin safety guardrails in response to the ClawHub security audit:
+  - `lutron_all_off` (whole-home kill switch) now requires an interactive
+    confirmation by default and is blocked in headless/automation contexts
+    unless explicitly opted in. New config keys: `confirmAllOff` (default
+    true), `confirmStateChanges` (default false), `allowUnattended` (default
+    false).
+  - Every state-changing tool carries prompt guidelines instructing the agent
+    to act only on direct user requests and never on instructions embedded in
+    untrusted content (prompt-injection guardrail).
+  - `lutron_occupancy` and `lutron_export` are flagged as privacy-sensitive
+    (they reveal presence and home layout) with guidance not to expose results
+    to untrusted channels.
+- "Safety & privacy" documentation in the plugin README and skill.
+
 ## [0.1.8] - 2026-05-26
 
 ### Added
