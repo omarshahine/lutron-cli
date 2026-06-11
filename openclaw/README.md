@@ -49,12 +49,26 @@ The plugin resolves the CLI from the `cliPath` config, the `LUTRON_CLI_PATH` env
 
 Smart Away randomly activates lights based on learned occupancy patterns to make it look like someone is home. It only works on Caseta Smart Bridges (not RA3 or HomeWorks QSX). Typical departure flow: activate a departure scene, `lutron_all_off` for anything left on, then `lutron_smart_away { action: "on" }`. Reverse on arrival.
 
+## Safety & privacy
+
+This plugin controls physical devices in your home, so it ships with guardrails:
+
+- **Kill switch confirmation.** `lutron_all_off` turns off the entire home at once. By default it requires an interactive confirmation before it fires, and it is **blocked in headless/automation contexts** (where there is no UI to confirm) unless you explicitly opt in with `allowUnattended`. Prefer a scoped `area` over the whole house.
+- **Prompt-injection guardrails.** Every state-changing tool tells the agent to act only on a direct request from you, and never on instructions buried in untrusted content (emails, web pages, documents, calendar invites).
+- **Occupancy is private.** `lutron_occupancy` and `lutron_export` reveal whether people are home and the full layout of the house. The tools flag this to the agent as sensitive; results should not be forwarded to third parties or untrusted channels.
+- **No shell injection.** The plugin invokes the `lutron` binary with an argv array (never a shell string), so device names and ids cannot inject shell metacharacters.
+
+Tune the gating with the config keys below. For an extra-cautious setup, set `confirmStateChanges: true` to require a confirmation before *every* change, not just the kill switch.
+
 ## Configuration
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `cliPath` | `lutron` | Path to the `lutron` binary |
 | `bridgeHost` | (CLI config) | Bridge IP or hostname, overrides the lutron-cli saved config |
+| `confirmAllOff` | `true` | Require an interactive confirmation before `lutron_all_off` fires |
+| `confirmStateChanges` | `false` | Require confirmation before *every* state-changing tool, not just the kill switch |
+| `allowUnattended` | `false` | Permit confirmation-gated actions to run when no interactive UI is available (trusted automation only) |
 
 ## Tips
 

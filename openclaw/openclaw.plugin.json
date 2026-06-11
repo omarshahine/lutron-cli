@@ -2,7 +2,7 @@
   "id": "lutron-caseta",
   "name": "Lutron Caseta",
   "description": "Control Lutron Caseta lighting: activate scenes, toggle Smart Away, inspect devices/areas/occupancy via the lutron CLI.",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "skills": [
     "skills/lutron"
   ],
@@ -17,6 +17,21 @@
       "bridgeHost": {
         "type": "string",
         "description": "Bridge IP or hostname (overrides lutron-cli config)"
+      },
+      "confirmAllOff": {
+        "type": "boolean",
+        "description": "Require an interactive confirmation before the lutron_all_off whole-home kill switch fires.",
+        "default": true
+      },
+      "confirmStateChanges": {
+        "type": "boolean",
+        "description": "Also require confirmation before every individual state-changing tool (set level/fan/cover/warm-dim, activate scene, tap button, Smart Away on/off), not just the bulk kill switch.",
+        "default": false
+      },
+      "allowUnattended": {
+        "type": "boolean",
+        "description": "Permit confirmation-gated actions to run in headless/automation contexts where no interactive UI exists to confirm. Leave off so an unattended agent (or prompt injection) cannot silently sweep the home off.",
+        "default": false
       }
     }
   },
@@ -29,6 +44,18 @@
     "bridgeHost": {
       "label": "Bridge Host",
       "help": "IP of your Smart Bridge (e.g. 192.168.1.50). Leave blank to use the lutron-cli config default."
+    },
+    "confirmAllOff": {
+      "label": "Confirm All Off",
+      "help": "Ask before turning off the whole home with lutron_all_off. Recommended on."
+    },
+    "confirmStateChanges": {
+      "label": "Confirm Every Change",
+      "help": "Ask before each individual light/shade/fan/scene change too. Off by default."
+    },
+    "allowUnattended": {
+      "label": "Allow Unattended",
+      "help": "Let confirmation-gated actions run when no UI is available to confirm (trusted automation only)."
     }
   }
 }
