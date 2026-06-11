@@ -44,6 +44,13 @@ interface TextContent {
  * `ui.confirm`, both of which exist across interactive/RPC/print modes.
  */
 interface HostUiContext {
+  /**
+   * Whether an interactive UI is available to confirm with. Must be exactly
+   * `true` to enable confirmation prompts — any other value (including a
+   * truthy non-boolean) is treated as "no UI", so a confirmation-gated action
+   * falls through to the headless policy (refused unless `allowUnattended`).
+   * Mirrors OpenClaw's `ExtensionContext.hasUI`, which is a strict boolean.
+   */
   hasUI?: boolean;
   ui?: {
     confirm?: (
@@ -569,7 +576,16 @@ export default function activate(context: OpenClawContext): void {
       ...(promptGuidelines ? { promptGuidelines } : {}),
 
       async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-        const decision = await ensureConfirmed(spec, params, config, ctx);
+        let decision: ConfirmDecision;
+        try {
+          decision = await ensureConfirmed(spec, params, config, ctx);
+        } catch (err: unknown) {
+          // A confirm dialog can reject (timeout, abort, host UI error). Fail
+          // closed: treat any confirmation failure as a refusal, never run the
+          // action, and surface a clean message instead of an unhandled throw.
+          const msg = err instanceof Error ? err.message : String(err);
+          return errorResult(`Confirmation failed; action not run: ${msg}`);
+        }
         if (!decision.ok) {
           return errorResult(decision.reason);
         }
