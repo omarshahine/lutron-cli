@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Bridge connections hung forever on Python 3.13+ with "Reconnecting after
+  error: check_hostname requires server_hostname". The TLS context now pins
+  the bridge CA with hostname checking off, since the bridge cert isn't
+  issued for its IP.
+
 ## [0.1.10] - 2026-06-11
 
 ### Added
