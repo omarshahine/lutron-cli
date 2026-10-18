@@ -53,6 +53,11 @@ jobs:
 
   openclaw:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 24 = publish-npm, 22 = publish-clawhub
+        node-version: ["22", "24"]
     defaults:
       run:
         working-directory: openclaw
@@ -60,7 +65,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: ${{ matrix.node-version }}
       # Same install + build the npm and ClawHub publish jobs run on a tag, so a
       # dependency bump that breaks the plugin build fails here, not at release.
       - run: npm install
