@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-10-17
+
+### Fixed
+- The OpenClaw plugin build failed under TypeScript 7, which no longer loads
+  `@types/node` by default, so 0.1.11 never reached npm or ClawHub.
+  `openclaw/tsconfig.json` now lists `"types": ["node"]`, and CI builds the
+  plugin on every PR.
+
 ## [0.1.11] - 2026-10-17
 
 ### Fixed
@@ -65,7 +73,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   callback is invoked with `zeroconf=` as a keyword argument. Renamed the
   callback parameter from `zc` to `zeroconf`.
 
-[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.11...HEAD
+[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.12...HEAD
+[0.1.12]: https://github.com/omarshahine/lutron-cli/compare/v0.1.11...v0.1.12
 [0.1.11]: https://github.com/omarshahine/lutron-cli/compare/v0.1.10...v0.1.11
 [0.1.8]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.8
 [0.1.0]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.0
