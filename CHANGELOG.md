@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-10-17
+
 ### Fixed
 - Bridge connections hung forever on Python 3.13+ with "Reconnecting after
   error: check_hostname requires server_hostname". The TLS context now pins
@@ -63,6 +65,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   callback is invoked with `zeroconf=` as a keyword argument. Renamed the
   callback parameter from `zc` to `zeroconf`.
 
-[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/omarshahine/lutron-cli/compare/v0.1.11...HEAD
+[0.1.11]: https://github.com/omarshahine/lutron-cli/compare/v0.1.10...v0.1.11
 [0.1.8]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.8
 [0.1.0]: https://github.com/omarshahine/lutron-cli/releases/tag/v0.1.0
